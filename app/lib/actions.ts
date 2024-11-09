@@ -1,35 +1,46 @@
-'use server';
-import { z } from 'zod';
-import { sql } from '@vercel/postgres';
-import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
+"use server";
+import { z } from "zod";
+import { sql } from "@vercel/postgres";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 const FormSchema = z.object({
-    id: z.string(),
-    customerId: z.string(),
-    status: z.enum(['pending', 'paid']),
-    amount: z.coerce.number(),
-    date: z.string(),
-})
+  id: z.string(),
+  customerId: z.string(),
+  status: z.enum(["pending", "paid"]),
+  amount: z.coerce.number(),
+  date: z.string(),
+});
 
 const CreateInvoice = FormSchema.omit({ id: true, date: true });
 
 export async function createInvoice(formData: FormData) {
-    const { customerId, amount, status } = CreateInvoice.parse(Object.fromEntries(formData.entries()))
+  try {
+    const { customerId, amount, status } = CreateInvoice.parse(
+      Object.fromEntries(formData.entries())
+    );
     const amountInCents = amount * 100;
-    const date = new Date().toISOString().split('T')[0];
+    const date = new Date().toISOString().split("T")[0];
 
     await sql`
-    INSERT INTO invoices (customer_id, amount, status, date)
-    VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
-    `;
+        INSERT INTO invoices (customer_id, amount, status, date)
+        VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
+        `;
 
-    revalidatePath('/dashboard/invoices');
-    redirect('/dashboard/invoices');
+    revalidatePath("/dashboard/invoices");
+  } catch (err) {
+    return {
+      message: "Database Error: Failed to Create Invoice.",
+    };
+  }
+  redirect("/dashboard/invoices");
 }
 
 export async function updateInvoice(id: string, formData: FormData) {
-    const { customerId, amount, status } = CreateInvoice.parse(Object.fromEntries(formData.entries()))
+  try {
+    const { customerId, amount, status } = CreateInvoice.parse(
+      Object.fromEntries(formData.entries())
+    );
     const amountInCents = amount * 100;
 
     await sql`
@@ -38,15 +49,26 @@ export async function updateInvoice(id: string, formData: FormData) {
         WHERE id = ${id}
     `;
 
-    revalidatePath('/dashboard/invoices');
-    redirect('/dashboard/invoices');
+    revalidatePath("/dashboard/invoices");
+  } catch (err) {
+    return {
+      message: "Database Error: Failed to Update Invoice.",
+    };
+  }
+  redirect("/dashboard/invoices");
 }
 
 export async function deleteInvoice(id: string) {
+  try {
     await sql`
         DELETE FROM invoices
         WHERE id = ${id}
     `;
 
-    revalidatePath('/dashboard/invoices');
+    revalidatePath("/dashboard/invoices");
+  } catch (err) {
+    return {
+      message: "Database Error: Failed to Delete Invoice.",
+    };
+  }
 }
